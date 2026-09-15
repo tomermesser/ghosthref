@@ -24,8 +24,10 @@ bad bot" judgment:
    No human input method reaches it; a client that arrives via this link is a
    naive crawler following every `href`.
 
-The `Referer` header distinguishes the two: absent means "read robots.txt and
-disobeyed," homepage URL means "never read robots.txt, just followed links."
+The `Referer` header tells the two apart, and the tier name says it directly —
+no need to go read `Referer` yourself: `bad-bot` means it read `robots.txt`
+and disobeyed; `from-href` means it never read `robots.txt`, it just followed
+the invisible link.
 
 ## Verdict tiers
 
@@ -33,12 +35,11 @@ Four-way, not two-way — blocking the wrong tier is the main failure mode.
 
 | Tier | Meaning | Action |
 |---|---|---|
-| `COMPLIANT` | Never touched a disallowed path | Serve normally |
-| `USER_PROXY` | Violated, but declared identity is exempt by spec (`ChatGPT-User`, `Perplexity-User`, `Meta-ExternalFetcher`, `Google-Extended`, `Claude-User`) | Log only, never block |
-| `NON_COMPLIANT` | Violated with no such excuse | Escalate: <5/hr warn, <20/hr throttle (429), ≥20/hr block 24h |
-| `FORGED` | Future work — claims a verifiable operator, IP outside published ranges | Block immediately |
-
-Run in shadow mode (log, enforce nothing) for the first day after go-live.
+| `compliant` | Never touched a disallowed path | `pass` |
+| `user-question-bot` | Violated, but it's a live, on-demand fetch for a human, not bulk crawling (`ChatGPT-User`, `Claude-User`, `Perplexity-User`, `Meta-ExternalFetcher`) | `pass`, log only, never block |
+| `bad-bot` | Fetched the honeypot directly — read `robots.txt` and ignored it | Escalate on a running total: <5 `pass`, <20 `throttle`, ≥20 `block` until cleared by hand |
+| `from-href` | Followed the invisible link — never read `robots.txt` at all | Same escalation as `bad-bot` |
+| `forged` | Future work — claims a verifiable operator, IP outside published ranges | `block` immediately |
 
 ## Architecture
 
@@ -97,11 +98,15 @@ Kibana` — if Elasticsearch is down, enforcement still works.
 
 ## Safety rails
 
-- Shadow mode on day 1 of the live run.
 - Permanent allowlist bypassing the whole pipeline (Googlebot, Bingbot).
-- Kill switch: one Redis key forcing every verdict to `ALLOW`.
-- Never block `USER_PROXY` — that traffic exists because a human just asked a
-  question about the page.
+- Never block `user-question-bot` — that traffic exists because a human just
+  asked a question about the page.
+- A specific wrongly-blocked IP can be lifted by hand at any time:
+  `redis-cli DEL block:<ip>`. (A global kill switch was considered — a Redis
+  key that forces every verdict to `pass` — but cut: it's a tool for "my own
+  enforcement logic is broken," which a 3-day, actively-watched run can just
+  fix and redeploy; the allowlist already covers the realistic
+  misclassification case.)
 - Limitation to state up front: counters are keyed by IP; CGNAT, mobile carriers
   and cloud NAT share IPs across many real users.
 

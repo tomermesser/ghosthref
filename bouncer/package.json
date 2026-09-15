@@ -1,0 +1,16 @@
+{
+  "name": "ghosthref-bouncer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enforces robots.txt as a live policy: parses the rules, decides a verdict, escalates repeat violators.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ioredis": "^5.4.1",
+    "pg": "^8.12.0",
+    "robots-parser": "^3.0.1"
+  }
+}

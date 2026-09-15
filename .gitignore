@@ -8,6 +8,9 @@ node_modules/
 npm-debug.log*
 *.log
 
+# Redis dump files (local dev only)
+dump.rdb
+
 # Terraform
 **/.terraform/
 *.tfstate
