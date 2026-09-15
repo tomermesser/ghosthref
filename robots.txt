@@ -1,0 +1,4 @@
+# /ghosthref-internal/ is a honeypot: no real link on this site points to
+# it, so any request for it proves the client read this file and ignored it.
+User-agent: *
+Disallow: /ghosthref-internal/
