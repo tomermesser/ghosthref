@@ -22,6 +22,11 @@ async function recordViolation(ip) {
   return redis.incr(`viol:${ip}`);
 }
 
+// Test-only: wipes one IP's state so the test suite starts clean every run.
+async function resetForTests(ip) {
+  await redis.del(`block:${ip}`, `viol:${ip}`);
+}
+
 // --- Postgres ---
 const pg = new Pool({
   host: process.env.PG_HOST || 'postgres',
@@ -39,4 +44,4 @@ function logViolation({ ip, ua, tier, action }) {
   ).catch((err) => console.error('[store] failed to log violation:', err.message));
 }
 
-module.exports = { isBlocked, block, recordViolation, logViolation };
+module.exports = { isBlocked, block, recordViolation, logViolation, resetForTests };

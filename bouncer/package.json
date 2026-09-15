@@ -5,7 +5,8 @@
   "description": "Enforces robots.txt as a live policy: parses the rules, decides a verdict, escalates repeat violators.",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test": "node test/verify.js"
   },
   "dependencies": {
     "express": "^4.19.2",
