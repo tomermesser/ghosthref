@@ -1,0 +1,42 @@
+services:
+
+  redis:
+    image: redis:alpine
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ghosthref
+      POSTGRES_PASSWORD: ghosthref
+      POSTGRES_DB: ghosthref
+    volumes:
+      # on first boot only — runs our migration.
+      - ./bouncer/db/migrations:/docker-entrypoint-initdb.d:ro
+
+  # The Express server that decides pass/throttle/block.
+  bouncer:
+    build: ./bouncer
+    environment:
+      ROBOTS_TXT_PATH: /config/robots.txt
+      REDIS_HOST: redis
+      PG_HOST: postgres
+      PG_USER: ghosthref
+      PG_PASSWORD: ghosthref
+      PG_DATABASE: ghosthref
+    volumes:
+      # Mounts the repo's real robots.txt at the exact path ROBOTS_TXT_PATH points to.
+      - ./robots.txt:/config/robots.txt:ro
+    depends_on:
+      - redis
+      - postgres
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro       
+      - ./site:/usr/share/nginx/html:ro                   # the homepage
+      - ./robots.txt:/usr/share/nginx/html/robots.txt:ro  # served at /robots.txt
+    depends_on:
+      - bouncer
