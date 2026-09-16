@@ -11,6 +11,21 @@ Final DevOps project — a personal AWS bill, not a lab-sponsored account. Budge
 is $15 total and the AWS stack is only ever up for ~3 days; see the design doc
 and the cost sections below before running anything against real AWS.
 
+## Repository layout
+
+```
+robots.txt              the source of truth — compiled into everything else, never hand-edited elsewhere
+site/                    the static homepage, served by nginx
+bouncer/                 the Node service that decides pass/throttle/block
+  src/                   server.js, robots.js, verdict.js, store.js
+  test/                  verify.js — the correctness harness (npm test)
+  db/migrations/         Postgres schema
+nginx/                   nginx.conf — the auth_request edge, identical in Compose and Kubernetes
+filebeat/                filebeat.yml — ships nginx's log into a plain, auto-mapped Elasticsearch index
+scripts/                 all bash automation lives here — one file, one job each
+docs/specs/              design docs, one per major decision
+```
+
 ## Prerequisites
 
 - Docker + Docker Compose, Node.js, for local development (steps 1–6, free).

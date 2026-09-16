@@ -1,0 +1,14 @@
+filebeat.inputs:
+  - type: log
+    paths:
+      - /var/log/ghosthref/access.log
+    json.keys_under_root: true
+    json.add_error_key: true
+
+# No custom template or ILM — a plain, auto-mapped index is enough here.
+setup.template.enabled: false
+setup.ilm.enabled: false
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "ghosthref-access"
