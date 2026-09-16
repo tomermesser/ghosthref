@@ -48,9 +48,8 @@ Four-way, not two-way — blocking the wrong tier is the main failure mode.
   docker compose: nginx · bouncer · redis · postgres
   + override: elasticsearch · kibana · filebeat
 
-  AWS — one VPC, ~3 days, then destroyed
+  AWS — one VPC, one public subnet, ~3 days, then destroyed
   ┌──────────────────────────────────────────────────────────────┐
-  │  public-a (AZ a)                     public-b (AZ b)         │
   │  ┌─────────────┐   ┌───────────┐     ┌───────────┐           │
   │  │ k3s-server  │   │ jenkins   │     │ k3s-agent │           │
   │  │ t3.small    │   │ t3.small  │     │ t3.small  │           │
@@ -63,7 +62,7 @@ Four-way, not two-way — blocking the wrong tier is the main failure mode.
   │                    │ PG · Redis │ ES · Kibana                 │
   │                    └────────────┘                             │
   └──────────────────────────────────────────────────────────────┘
-        jenkins ──6443──▶ k3s-server         S3: terraform state
+        jenkins ──6443──▶ k3s-server         terraform state: local, gitignored
 ```
 
 Request path: `Client → Nginx (auth_request) → Bouncer ←→ Redis/Postgres`.
@@ -77,9 +76,9 @@ Kibana` — if Elasticsearch is down, enforcement still works.
 | Kubernetes | **k3s**, not kubeadm | Runs the server on a `t3.small`; kubeadm's control plane wants 2GB before scheduling anything, forcing `t3.medium`. One playbook instead of four — flannel, metrics-server and a load-balancer controller ship built in. kubeadm was already demonstrated in the previous project. |
 | Public entrypoint | `type: LoadBalancer` via k3s ServiceLB | A real Service object, a clean URL, $0. A cloud ALB would be ~$16/mo. |
 | Always-on edge host | None | No split between on-demand and always-on — there is one 3-day window. |
-| Subnets | Two public subnets, two AZs, no private subnet | Subnets are free, multi-AZ is free coverage. A private data host needs a NAT Gateway (~$33/mo) for no security benefit a strict SG doesn't already give. |
+| Subnets | One public subnet, single AZ, no private subnet | Multi-AZ only ever mattered for an ALB, which was already cut on cost. A private data host would also need a NAT Gateway (~$33/mo) for no security benefit a strict SG doesn't already give. |
 | Nginx in k8s | Own Deployment, `nginx.conf` in a ConfigMap, no Ingress | The identical `nginx.conf` runs in Compose and in Kubernetes. `ingress-nginx` forces auth through annotations and breaks the 401→429 throttle distinction. |
-| Log shipper | Filebeat straight to Elasticsearch | No Logstash. ES's built-in `geoip` ingest processor does the enrichment. |
+| Log shipper | Filebeat straight to Elasticsearch, plain auto-mapped index | No Logstash, no ILM, no geoip pipeline — all three would be dead weight for a 3-day, low-volume, actively-destroyed environment. |
 | Observability store | Elasticsearch + Kibana only | No Grafana, no Prometheus — they'd answer questions ES already answers. |
 | Dashboards | Built locally in Docker, exported as saved objects, imported on the real cluster | The only things ever debugged on a running AWS meter are Terraform, the k3s install, Filebeat over the network, and Jenkins. |
 | TLS | HTTP only | Mass scanners hit every public IPv4 on port 80 regardless. HTTPS is a 10-minute add-on if wanted later. |

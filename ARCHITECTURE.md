@@ -24,8 +24,7 @@ flowchart TD
     subgraph TF["Terraform — terraform/"]
         direction TB
         VPC(["aws_vpc.ghosthref<br/>10.2.0.0/16"])
-        SUBA(["public-a (AZ a)"])
-        SUBB(["public-b (AZ b)"])
+        SUB(["public subnet, single AZ"])
         IGW(["aws_internet_gateway"])
         RT(["aws_route_table<br/>0.0.0.0/0 → igw"])
         KSG(["k3s-sg<br/>22+80 from my IP<br/>self-ref all traffic<br/>+6443 from jenkins-sg"])
@@ -37,11 +36,10 @@ flowchart TD
         JENK_EC2(["EC2: jenkins (t3.small)"])
         BUDGET(["aws_budgets_budget<br/>alert at $10"])
 
-        VPC --> SUBA & SUBB --> RT
+        VPC --> SUB --> RT
         IGW --> RT
-        SUBA --> KSG --> SRV & JENK_EC2
-        SUBB --> KSG --> AGT
-        SUBA --> DSG --> DATA
+        SUB --> KSG --> SRV & AGT & JENK_EC2
+        SUB --> DSG --> DATA
     end
 
     subgraph ANSIBLE["Ansible — ansible/playbooks/"]
@@ -94,7 +92,7 @@ flowchart TD
 | Layer | Tool | Responsibility |
 |---|---|---|
 | Local development | **Docker Compose** | The entire app — nginx, bouncer, redis, postgres, and (in the observability override) elasticsearch + kibana + filebeat. Every dashboard is built and exported here, at zero cost, before anything touches AWS. |
-| Cloud infrastructure | **Terraform** | VPC, two public subnets across two AZs, IGW, route table, three security groups, four EC2 instances (all pinned to standard CPU credits), a Budget alarm. State-driven, in S3 — `apply`/`destroy` are idempotent and reversible. |
+| Cloud infrastructure | **Terraform** | VPC, one public subnet, IGW, route table, three security groups, four EC2 instances (all pinned to standard CPU credits), a Budget alarm. Local state (gitignored, solo/single-machine project) — `apply`/`destroy` are idempotent and reversible. |
 | Node configuration | **Ansible** | One playbook installs k3s (server `--disable traefik` + agent join via `K3S_URL`/`K3S_TOKEN`); one provisions the data host (Postgres, Redis, Elasticsearch, Kibana); one provisions Jenkins. Agentless (SSH), run from the operator's laptop against a manually-filled inventory. |
 | Cluster orchestration | **k3s** | Single-binary Kubernetes; ServiceLB gives a `type: LoadBalancer` Service a real public IP on port 80 with no cloud load balancer to pay for. |
 | Application definition | **kubectl YAML manifests** | Deployment + Service + ConfigMap + Secret + HPA per component (`k8s/*.yaml`). Only the image tag changes per deploy (`kubectl set image`), same as the previous project. |

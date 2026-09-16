@@ -61,7 +61,31 @@ verifiable, run-it-for-real style as the previous class project
 *(added in `06-local-observability`)*
 
 ### Step 7: AWS infrastructure
-*(added in `07-terraform`)*
+
+One VPC, one public subnet, four EC2 instances (k3s server, k3s agent, data
+host, Jenkins), three security groups, and a $10 budget alarm. See
+`docs/specs/2026-09-15-ghosthref-design.md` for why it's a single AZ with no
+private subnet or ALB — both were cut on cost, not by accident.
+
+**One-time setup, before the first `terraform apply`:**
+```
+aws ec2 import-key-pair --key-name ghosthref-key \
+  --public-key-material fileb://~/.ssh/id_ed25519.pub
+cp .env.example .env   # fill in your AWS access key + secret
+./scripts/login.sh
+```
+
+**Then:**
+```
+cd terraform
+terraform init
+terraform apply -var="my_ip_cidr=$(curl -s ifconfig.me)/32" -var="alert_email=you@example.com"
+```
+
+Verify — four public IPs printed as outputs, and each one reachable:
+```
+ssh -i ~/.ssh/id_ed25519 ubuntu@<k3s_server_public_ip>
+```
 
 ### Step 8: Teardown and cost control
 *(added in `08-teardown`)*
