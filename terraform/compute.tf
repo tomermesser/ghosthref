@@ -15,7 +15,7 @@ data "aws_ami" "ubuntu" {
 
 resource "aws_security_group" "k3s" {
   name        = "ghosthref-k3s-sg"
-  description = "k3s nodes: SSH + HTTP from operator IP, all traffic between nodes, API from Jenkins"
+  description = "k3s node: SSH + HTTP from operator IP, API from Jenkins"
   vpc_id      = aws_vpc.ghosthref.id
 
   ingress {
@@ -32,14 +32,6 @@ resource "aws_security_group" "k3s" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "All traffic between cluster nodes"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    self        = true
   }
 
   ingress {
@@ -175,22 +167,6 @@ resource "aws_instance" "k3s_server" {
 
   tags = {
     Name = "ghosthref-k3s-server"
-  }
-}
-
-resource "aws_instance" "k3s_agent" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.instance_type_small
-  subnet_id              = aws_subnet.public.id
-  key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.k3s.id]
-
-  credit_specification {
-    cpu_credits = "standard"
-  }
-
-  tags = {
-    Name = "ghosthref-k3s-agent"
   }
 }
 

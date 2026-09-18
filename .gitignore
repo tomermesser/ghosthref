@@ -23,7 +23,6 @@ crash.*.log
 # Ansible generated / environment-specific files
 ansible/inventory.ini
 ansible/kubeconfig
-ansible/join-command.sh
 *.retry
 
 # Kubernetes generated
@@ -32,7 +31,6 @@ k8s/secrets.yaml
 # TLS / keys
 *.pem
 *.key
-!k3s-token.example
 
 # macOS
 .DS_Store

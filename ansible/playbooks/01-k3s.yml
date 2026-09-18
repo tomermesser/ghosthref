@@ -1,0 +1,24 @@
+---
+- name: Install k3s (single node — server and worker in one)
+  hosts: k3s_server
+  become: true
+
+  tasks:
+    - name: Install k3s (Traefik disabled — we use nginx instead)
+      shell: curl -sfL https://get.k3s.io | sh -s - --disable traefik --write-kubeconfig-mode 644
+      args:
+        creates: /usr/local/bin/k3s
+
+    # k3s.yaml hardcodes "server: https://127.0.0.1:6443" — useless off this
+    # node. Point it at the private IP so Jenkins can use it as a credential.
+    - name: Point the fetched kubeconfig at the private IP instead of 127.0.0.1
+      replace:
+        path: /etc/rancher/k3s/k3s.yaml
+        regexp: '127\.0\.0\.1'
+        replace: "{{ ansible_default_ipv4.address }}"
+
+    - name: Fetch kubeconfig to local machine
+      fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ playbook_dir }}/../kubeconfig"
+        flat: true

@@ -1,0 +1,11 @@
+# The single k3s node — brain and worker in one, since k3s doesn't taint it
+[k3s_server]
+k3s-server ansible_host=REPLACE_WITH_K3S_SERVER_PUBLIC_IP
+
+# Runs the databases (Postgres, Redis) and the dashboard tools (Elasticsearch, Kibana)
+[data]
+data ansible_host=REPLACE_WITH_DATA_PUBLIC_IP
+
+# Runs Jenkins pipline for auto-deploy updates.
+[jenkins]
+jenkins ansible_host=REPLACE_WITH_JENKINS_PUBLIC_IP

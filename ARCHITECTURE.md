@@ -27,35 +27,34 @@ flowchart TD
         SUB(["public subnet, single AZ"])
         IGW(["aws_internet_gateway"])
         RT(["aws_route_table<br/>0.0.0.0/0 → igw"])
-        KSG(["k3s-sg<br/>22+80 from my IP<br/>self-ref all traffic<br/>+6443 from jenkins-sg"])
+        KSG(["k3s-sg<br/>22+80 from my IP<br/>+6443 from jenkins-sg"])
         DSG(["data-sg<br/>5432/6379/9200/5601 from k3s-sg only"])
         JSG(["jenkins-sg<br/>22+8080 from my IP<br/>8080 from GitHub webhook IPs"])
         SRV(["EC2: k3s-server (t3.small)"])
-        AGT(["EC2: k3s-agent (t3.small)"])
         DATA(["EC2: data host (t3.medium)"])
         JENK_EC2(["EC2: jenkins (t3.small)"])
         BUDGET(["aws_budgets_budget<br/>alert at $10"])
 
         VPC --> SUB --> RT
         IGW --> RT
-        SUB --> KSG --> SRV & AGT & JENK_EC2
+        SUB --> KSG --> SRV & JENK_EC2
         SUB --> DSG --> DATA
     end
 
     subgraph ANSIBLE["Ansible — ansible/playbooks/"]
         direction TB
-        P1["01-k3s.yml<br/>server --disable traefik<br/>+ agent join"]
+        P1["01-k3s.yml<br/>single node,<br/>--disable traefik"]
         P2["02-data-services.yml<br/>postgres + redis + elasticsearch + kibana"]
         P3["03-jenkins.yml<br/>docker + kubectl + jenkins"]
     end
 
-    SRV & AGT -.provisioned by.-> P1
+    SRV -.provisioned by.-> P1
     DATA -.provisioned by.-> P2
     JENK_EC2 -.provisioned by.-> P3
 
     P1 --> K8S
 
-    subgraph K8S["k3s cluster — 1 server + 1 agent"]
+    subgraph K8S["k3s cluster — single node (server + worker in one)"]
         direction TB
         EDGE["nginx-edge<br/>Deployment + Service (LoadBalancer :80)"]
         BOUNCER_K["bouncer<br/>Deployment + Service + HPA"]
@@ -92,8 +91,8 @@ flowchart TD
 | Layer | Tool | Responsibility |
 |---|---|---|
 | Local development | **Docker Compose** | The entire app — nginx, bouncer, redis, postgres, and (in the observability override) elasticsearch + kibana + filebeat. Every dashboard is built and exported here, at zero cost, before anything touches AWS. |
-| Cloud infrastructure | **Terraform** | VPC, one public subnet, IGW, route table, three security groups, four EC2 instances (all pinned to standard CPU credits), a Budget alarm. Local state (gitignored, solo/single-machine project) — `apply`/`destroy` are idempotent and reversible. |
-| Node configuration | **Ansible** | One playbook installs k3s (server `--disable traefik` + agent join via `K3S_URL`/`K3S_TOKEN`); one provisions the data host (Postgres, Redis, Elasticsearch, Kibana); one provisions Jenkins. Agentless (SSH), run from the operator's laptop against a manually-filled inventory. |
+| Cloud infrastructure | **Terraform** | VPC, one public subnet, IGW, route table, three security groups, three EC2 instances (all pinned to standard CPU credits), a Budget alarm. Local state (gitignored, solo/single-machine project) — `apply`/`destroy` are idempotent and reversible. |
+| Node configuration | **Ansible** | One playbook installs k3s, single node, `--disable traefik`; one provisions the data host (Postgres, Redis, Elasticsearch, Kibana); one provisions Jenkins. Agentless (SSH), run from the operator's laptop against a manually-filled inventory. |
 | Cluster orchestration | **k3s** | Single-binary Kubernetes; ServiceLB gives a `type: LoadBalancer` Service a real public IP on port 80 with no cloud load balancer to pay for. |
 | Application definition | **kubectl YAML manifests** | Deployment + Service + ConfigMap + Secret + HPA per component (`k8s/*.yaml`). Only the image tag changes per deploy (`kubectl set image`), same as the previous project. |
 | App packaging | **Docker + Docker Hub** | `bouncer/Dockerfile` and `webserver/Dockerfile`-equivalent for nginx-edge. Jenkins tags every build with the triggering commit's short SHA. |

@@ -50,10 +50,10 @@ Four-way, not two-way — blocking the wrong tier is the main failure mode.
 
   AWS — one VPC, one public subnet, ~3 days, then destroyed
   ┌──────────────────────────────────────────────────────────────┐
-  │  ┌─────────────┐   ┌───────────┐     ┌───────────┐           │
-  │  │ k3s-server  │   │ jenkins   │     │ k3s-agent │           │
-  │  │ t3.small    │   │ t3.small  │     │ t3.small  │           │
-  │  └─────────────┘   └─────┬─────┘     └───────────┘           │
+  │  ┌─────────────┐   ┌───────────┐                             │
+  │  │ k3s-server  │   │ jenkins   │                             │
+  │  │ t3.small    │   │ t3.small  │                             │
+  │  └─────────────┘   └─────┬─────┘                             │
   │    k3s: nginx-edge · bouncer · simulator · filebeat           │
   │    Service type LoadBalancer → :80 (ServiceLB, no cloud LB)   │
   │                          │ 5432 / 6379 / 9200  (SG→SG only)   │

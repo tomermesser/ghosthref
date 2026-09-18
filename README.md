@@ -62,10 +62,13 @@ verifiable, run-it-for-real style as the previous class project
 
 ### Step 7: AWS infrastructure
 
-One VPC, one public subnet, four EC2 instances (k3s server, k3s agent, data
-host, Jenkins), three security groups, and a $10 budget alarm. See
+One VPC, one public subnet, three EC2 instances (k3s server, data host,
+Jenkins), three security groups, and a $10 budget alarm. See
 `docs/specs/2026-09-15-ghosthref-design.md` for why it's a single AZ with no
-private subnet or ALB — both were cut on cost, not by accident.
+private subnet or ALB — both were cut on cost, not by accident. k3s runs as a
+single node — its server isn't tainted the way kubeadm's control-plane is, so
+it can run workloads too; a second node would only earn its keep once we're
+deliberately load-testing HPA, which isn't a graded requirement here.
 
 **One-time setup, before the first `terraform apply`:**
 ```
@@ -82,7 +85,7 @@ terraform init
 terraform apply -var="my_ip_cidr=$(curl -s ifconfig.me)/32" -var="alert_email=you@example.com"
 ```
 
-Verify — four public IPs printed as outputs, and each one reachable:
+Verify — three public IPs printed as outputs, and each one reachable:
 ```
 ssh -i ~/.ssh/id_ed25519 ubuntu@<k3s_server_public_ip>
 ```
@@ -91,7 +94,26 @@ ssh -i ~/.ssh/id_ed25519 ubuntu@<k3s_server_public_ip>
 *(added in `08-teardown`)*
 
 ### Step 9: k3s cluster
-*(added in `09-ansible-k3s`)*
+
+One playbook, one node: it installs k3s with Traefik disabled (nginx is our
+own ingress) and ServiceLB left on (that's what gives `type: LoadBalancer` a
+real port 80 with no cloud load balancer). k3s doesn't taint its server the
+way kubeadm does, so this single node is both brain and worker. k3s's
+kubeconfig hardcodes `127.0.0.1`, so the playbook rewrites it to the server's
+private IP before fetching it — that copy is what Jenkins uses as a
+credential later.
+
+```
+cd ansible
+cp inventory.ini.example inventory.ini   # fill in the 3 IPs from `terraform output`
+ansible all -m ping
+ansible-playbook playbooks/01-k3s.yml
+```
+
+Verify — the node `Ready`, run over SSH since kubectl isn't exposed to the operator directly:
+```
+ssh -i ~/.ssh/id_ed25519_personal ubuntu@<k3s_server_public_ip> 'kubectl get nodes'
+```
 
 ### Step 10: Data host and Jenkins
 *(added in `10-ansible-services`)*

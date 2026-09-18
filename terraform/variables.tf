@@ -23,7 +23,7 @@ variable "my_ip_cidr" {
 }
 
 variable "instance_type_small" {
-  description = "Instance type for the k3s server, k3s agent, and Jenkins"
+  description = "Instance type for the k3s server and Jenkins"
   type        = string
   default     = "t3.small"
 }
