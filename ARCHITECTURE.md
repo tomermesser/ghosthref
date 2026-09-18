@@ -44,7 +44,7 @@ flowchart TD
     subgraph ANSIBLE["Ansible — ansible/playbooks/"]
         direction TB
         P1["01-k3s.yml<br/>single node,<br/>--disable traefik"]
-        P2["02-data-services.yml<br/>postgres + redis + elasticsearch + kibana"]
+        P2["02-data.yml<br/>postgres + redis + elasticsearch + kibana"]
         P3["03-jenkins.yml<br/>docker + kubectl + jenkins"]
     end
 

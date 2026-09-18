@@ -116,7 +116,33 @@ ssh -i ~/.ssh/id_ed25519_personal ubuntu@<k3s_server_public_ip> 'kubectl get nod
 ```
 
 ### Step 10: Data host and Jenkins
-*(added in `10-ansible-services`)*
+
+Two playbooks. `02-data.yml` installs Postgres, Redis, Elasticsearch
+and Kibana on the data host — same choices as local Compose (no ILM, no
+geoip, ES security disabled) since the SG restricting 5432/6379/9200 to the
+k3s node only is the real boundary here too, not TLS. `03-jenkins.yml` is
+close to a straight copy of the previous project's — Jenkins doesn't care
+what app it's deploying.
+
+**One-time:** the Postgres tasks need a collection not in Ansible core:
+```
+cd ansible
+ansible-galaxy collection install -r requirements.yml
+```
+
+**Then, to provision everything from scratch in one command:**
+```
+ansible-playbook site.yml
+```
+
+Verify:
+```
+ssh -i ~/.ssh/id_ed25519_personal ubuntu@<data_public_ip> \
+  'sudo -u postgres psql -d ghosthref -c "\dt"'   # the violations table exists
+curl -s -o /dev/null -w '%{http_code}\n' http://<data_public_ip>:5601
+# 302 (redirect to Kibana's login-less setup page) — reachable directly,
+# no SSH tunnel needed, since data-sg already opens 5601 to your own IP
+```
 
 ### Step 11: Kubernetes manifests
 *(added in `11-k8s-manifests`)*

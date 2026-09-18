@@ -1,0 +1,5 @@
+---
+# Runs every playbook in order. One command, full rebuild after terraform apply.
+- import_playbook: playbooks/01-k3s.yml
+- import_playbook: playbooks/02-data.yml
+- import_playbook: playbooks/03-jenkins.yml

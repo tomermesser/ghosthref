@@ -1,0 +1,186 @@
+---
+- name: Data host — Postgres, Redis, Elasticsearch, Kibana
+  hosts: data
+  become: true
+  vars:
+    vpc_cidr: "10.2.0.0/16"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    # t3.medium has 4GB RAM — four services at once needs headroom.
+    - name: Check for an existing swapfile
+      stat:
+        path: /swapfile
+      register: swapfile
+
+    - name: Create a 2GB swapfile
+      command: fallocate -l 2G /swapfile
+      when: not swapfile.stat.exists
+
+    - name: Set swapfile permissions
+      file:
+        path: /swapfile
+        mode: "0600"
+      when: not swapfile.stat.exists
+
+    - name: Format and enable the swapfile
+      shell: mkswap /swapfile && swapon /swapfile
+      when: not swapfile.stat.exists
+
+    - name: Persist the swapfile in fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+
+    # --- Postgres ---
+
+    - name: Install Postgres
+      apt:
+        name:
+          - postgresql
+          - python3-psycopg2 # required by the postgresql_user/postgresql_db modules below
+        state: present
+
+    - name: Let Postgres listen on all interfaces (the SG already restricts who can reach it)
+      lineinfile:
+        path: /etc/postgresql/14/main/postgresql.conf
+        regexp: "^#?listen_addresses"
+        line: "listen_addresses = '*'" # let postgress listen on all interfaces
+
+    - name: Allow password auth from inside the VPC
+      lineinfile:
+        path: /etc/postgresql/14/main/pg_hba.conf
+        line: "host all all {{ vpc_cidr }} md5"
+
+    - name: Restart Postgres
+      systemd:
+        name: postgresql
+        state: restarted
+        enabled: true
+
+    # Postgres calls a user account a "role" internally — this creates the
+    # ghosthref user the bouncer connects as.
+    - name: Create the ghosthref Postgres user
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: ghosthref
+        password: ghosthref
+        role_attr_flags: CREATEDB
+
+    - name: Create the ghosthref database, owned by that user
+      become_user: postgres
+      community.postgresql.postgresql_db:
+        name: ghosthref
+        owner: ghosthref
+
+    - name: Copy the schema migration
+      copy:
+        src: ../../bouncer/db/migrations/001_init.sql
+        dest: /tmp/001_init.sql
+
+    - name: Apply the schema migration (idempotent — uses CREATE TABLE IF NOT EXISTS)
+      become_user: postgres
+      command: psql -d ghosthref -f /tmp/001_init.sql
+      changed_when: true
+
+    # --- Redis ---
+
+    - name: Install Redis
+      apt:
+        name: redis-server
+        state: present
+
+    - name: Let Redis listen on all interfaces (the SG already restricts who can reach it)
+      lineinfile:
+        path: /etc/redis/redis.conf
+        regexp: "^bind"
+        line: "bind 0.0.0.0"
+
+    - name: Restart Redis
+      systemd:
+        name: redis-server
+        state: restarted
+        enabled: true
+
+    # --- Elasticsearch + Kibana ---
+
+    - name: Set vm.max_map_count for Elasticsearch
+      sysctl:
+        name: vm.max_map_count
+        value: "262144"
+        state: present
+        reload: true
+
+    - name: Ensure /etc/apt/keyrings directory exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Elastic apt GPG key
+      get_url:
+        url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+        dest: /tmp/elastic.asc
+        mode: "0644"
+
+    - name: Dearmor Elastic apt GPG key
+      shell: gpg --batch --yes --dearmor -o /etc/apt/keyrings/elastic.gpg /tmp/elastic.asc
+      args:
+        creates: /etc/apt/keyrings/elastic.gpg
+
+    - name: Add Elastic apt repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/elastic.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
+        filename: elastic-8.x
+        state: present
+
+    - name: Install Elasticsearch and Kibana
+      apt:
+        name:
+          - elasticsearch
+          - kibana
+        state: present
+        update_cache: true
+
+    - name: Disable Elasticsearch security (the SG, not TLS, is the real boundary here)
+      lineinfile:
+        path: /etc/elasticsearch/elasticsearch.yml
+        regexp: "^xpack.security.enabled"
+        line: "xpack.security.enabled: false"
+
+    - name: Bind Elasticsearch to the private IP, never 0.0.0.0
+      lineinfile:
+        path: /etc/elasticsearch/elasticsearch.yml
+        regexp: "^network.host"
+        line: "network.host: {{ ansible_default_ipv4.address }}"
+
+    - name: Set the Elasticsearch heap explicitly (defaults would overgrab on this box)
+      copy:
+        dest: /etc/elasticsearch/jvm.options.d/heap.options
+        content: |
+          -Xms1g
+          -Xmx1g
+
+    - name: Enable and start Elasticsearch
+      systemd:
+        name: elasticsearch
+        state: restarted
+        enabled: true
+
+    - name: Point Kibana at Elasticsearch and expose it beyond localhost
+      lineinfile:
+        path: /etc/kibana/kibana.yml
+        line: "{{ item }}"
+      loop:
+        - 'server.host: "0.0.0.0"'
+        - 'elasticsearch.hosts: ["http://{{ ansible_default_ipv4.address }}:9200"]'
+
+    - name: Enable and start Kibana
+      systemd:
+        name: kibana
+        state: restarted
+        enabled: true
