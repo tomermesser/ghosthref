@@ -58,7 +58,6 @@ flowchart TD
         direction TB
         EDGE["nginx-edge<br/>Deployment + Service (LoadBalancer :80)"]
         BOUNCER_K["bouncer<br/>Deployment + Service + HPA"]
-        SIM["simulator<br/>Deployment (scale for load demo)"]
         FB["filebeat<br/>DaemonSet"]
         CM["ConfigMap: robots rules + nginx.conf + site"]
         SEC["Secret: postgres + redis connection info"]
@@ -74,7 +73,7 @@ flowchart TD
 
     subgraph JENKINS["Jenkins EC2 — Jenkinsfile pipeline"]
         direction TB
-        J1["Checkout"] --> J2["Test"] --> J3["Compile robots.txt<br/>→ ConfigMap + Postgres rules"] --> J4["Build<br/>docker build"] --> J5["Push<br/>docker push"] --> J6["Deploy<br/>kubectl set image"] --> J7["Verify<br/>run simulators, fail on<br/>any changed verdict"]
+        J1["Checkout"] --> J2["Test"] --> J3["Compile robots.txt<br/>→ ConfigMap"] --> J4["Build<br/>docker build"] --> J5["Push<br/>docker push"] --> J6["Deploy<br/>kubectl set image"] --> J7["Verify<br/>run test suite, fail on<br/>any changed verdict"]
     end
 
     J5 -->|"tag: git short-SHA"| DH["Docker Hub<br/>ghosthref/bouncer"]
@@ -96,7 +95,7 @@ flowchart TD
 | Cluster orchestration | **k3s** | Single-binary Kubernetes; ServiceLB gives a `type: LoadBalancer` Service a real public IP on port 80 with no cloud load balancer to pay for. |
 | Application definition | **kubectl YAML manifests** | Deployment + Service + ConfigMap + Secret + HPA per component (`k8s/*.yaml`). Only the image tag changes per deploy (`kubectl set image`), same as the previous project. |
 | App packaging | **Docker + Docker Hub** | `bouncer/Dockerfile` and `webserver/Dockerfile`-equivalent for nginx-edge. Jenkins tags every build with the triggering commit's short SHA. |
-| CI/CD | **Jenkins + GitHub webhook** | The only fully automated path from `git push` to a live rollout — and the one stage worth demoing: it compiles `robots.txt` into the ConfigMap and Postgres rules, then re-runs the six simulators against the deployed environment and **fails the build if any verdict changed**. |
+| CI/CD | **Jenkins + GitHub webhook** | The only fully automated path from `git push` to a live rollout — and the one stage worth demoing: it compiles `robots.txt` into the ConfigMap, then re-runs the test suite against the deployed environment and **fails the build if any verdict changed**. |
 | Observability | **Filebeat → Elasticsearch → Kibana** | Decoupled from the request path — if Elasticsearch is down, enforcement still works. No Logstash, no Grafana, no Prometheus. |
 | Cost control | **`make nuke` / `make cost`** (`scripts/`) | `terraform destroy` plus a region-wide sweep for orphaned instances, volumes, EIPs, NAT gateways and load balancers. Verified to report zero survivors *before* the first `apply`, not after. |
 | Secrets | **`.env` + `login.sh`** (AWS) / **Jenkins credentials store** (Docker Hub token, kubeconfig, webhook secret) | Nothing credential-bearing is ever committed. |

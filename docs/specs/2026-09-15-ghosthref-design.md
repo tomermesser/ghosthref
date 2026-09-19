@@ -54,7 +54,7 @@ Four-way, not two-way — blocking the wrong tier is the main failure mode.
   │  │ k3s-server  │   │ jenkins   │                             │
   │  │ t3.small    │   │ t3.small  │                             │
   │  └─────────────┘   └─────┬─────┘                             │
-  │    k3s: nginx-edge · bouncer · simulator · filebeat           │
+  │    k3s: nginx-edge · bouncer · filebeat                       │
   │    Service type LoadBalancer → :80 (ServiceLB, no cloud LB)   │
   │                          │ 5432 / 6379 / 9200  (SG→SG only)   │
   │                    ┌─────▼──────┐                             │
