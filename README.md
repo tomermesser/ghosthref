@@ -178,7 +178,36 @@ curl http://<EXTERNAL-IP>/       # 200, the homepage
 ```
 
 ### Step 12: Shipping logs to the cluster
-*(added in `12-filebeat`)*
+
+`k8s/filebeat-daemonset.yaml.example` — one DaemonSet, one node, so this only
+ever runs once. It reads `/var/log/containers/nginx-edge-*.log` directly —
+kubelet names each file after its pod and container, so filtering by
+filename alone is enough to only ship nginx-edge's logs, no Kubernetes API
+access or RBAC needed.
+
+Real difference from local Compose worth knowing: Compose's Filebeat used
+`type: log` because we bind-mounted a real file directly. Here it's
+`type: container`, because the container runtime writes stdout in its own
+line format first (containerd/CRI: `<timestamp> stdout F <line>`, not JSON —
+different from Docker's own json-file format, but the same underlying
+problem) — `type: container` strips that automatically before Filebeat ever
+sees our JSON.
+
+```
+cp k8s/filebeat-daemonset.yaml.example k8s/filebeat-daemonset.yaml   # fill in the data host's private IP
+kubectl apply -f k8s/filebeat-daemonset.yaml
+```
+
+Verify:
+```
+kubectl logs -l app=filebeat --tail=20   # no errors
+curl -s "http://<data_public_ip>:9200/ghosthref-access/_count"   # climbing as real traffic arrives
+```
+
+Once real data is flowing, this is also when you build the Kibana dashboard
+(if you haven't already against local Compose in step 6) and export it as
+`kibana/saved-objects.ndjson` — the same file re-imports cleanly here since
+both environments write to the same `ghosthref-access` index shape.
 
 ### Step 13: CI/CD
 *(added in `13-jenkins-pipeline`)*

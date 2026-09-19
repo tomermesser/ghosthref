@@ -23,7 +23,7 @@ spec:
           volumeMounts:
             - name: robots
               mountPath: /config
-          # Caps how much a misbehaving pod can take before Kubernetes throttles it.
+          # Limit how much a misbehaving pod can take before Kubernetes throttles it.
           resources:
             requests:
               cpu: 50m

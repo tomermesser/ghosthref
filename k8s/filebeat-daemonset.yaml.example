@@ -1,0 +1,63 @@
+# Ships nginx's logs into Elasticsearch — copy to filebeat-daemonset.yaml, fill in the data host's private IP, apply.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+data:
+  # type: container strips the runtime's log-line wrapper; filename filtering needs no RBAC.
+  filebeat.yml: |
+    filebeat.inputs:
+      - type: container
+        paths:
+          - /var/log/containers/nginx-edge-*.log
+        json.keys_under_root: true
+        json.add_error_key: true
+
+    setup.template.enabled: false
+    setup.ilm.enabled: false
+
+    output.elasticsearch:
+      hosts: ["http://REPLACE_WITH_DATA_HOST_PRIVATE_IP:9200"]
+      index: "ghosthref-access"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat
+spec:
+  selector:
+    matchLabels:
+      app: filebeat
+  template:
+    metadata:
+      labels:
+        app: filebeat
+    spec:
+      containers:
+        - name: filebeat
+          image: docker.elastic.co/beats/filebeat:8.15.0
+          args: ["-c", "/etc/filebeat.yml", "-e"]
+          securityContext:
+            runAsUser: 0 # needs root to read another container's log files on the node
+          volumeMounts:
+            - name: config
+              mountPath: /etc/filebeat.yml
+              subPath: filebeat.yml
+              readOnly: true
+            - name: varlogcontainers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: filebeat-config
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+        # /var/log/containers/*.log are symlinks into here — need both mounted.
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods

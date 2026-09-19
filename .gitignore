@@ -17,8 +17,6 @@ dump.rdb
 *.tfstate.*
 crash.log
 crash.*.log
-*.tfvars
-!*.tfvars.example
 
 # Ansible generated / environment-specific files
 ansible/inventory.ini
@@ -27,6 +25,7 @@ ansible/kubeconfig
 
 # Kubernetes generated
 k8s/secret.yaml
+k8s/filebeat-daemonset.yaml
 
 # TLS / keys
 *.pem
