@@ -1,8 +1,7 @@
 # Architecture
 
 What this repo builds, in one diagram, and which tool is responsible for which
-part. See `README.md` for the runnable step-by-step build log, and
-`docs/specs/2026-09-15-ghosthref-design.md` for the design rationale.
+part. See `README.md` to actually run it.
 
 ```mermaid
 flowchart TD
@@ -27,8 +26,8 @@ flowchart TD
         SUB(["public subnet, single AZ"])
         IGW(["aws_internet_gateway"])
         RT(["aws_route_table<br/>0.0.0.0/0 → igw"])
-        KSG(["k3s-sg<br/>22+80 from my IP<br/>+6443 from jenkins-sg"])
-        DSG(["data-sg<br/>5432/6379 from k3s+jenkins-sg<br/>9200 from k3s-sg, 5601 from my IP"])
+        KSG(["k3s-sg<br/>22 from my IP, 80 from anywhere<br/>(the public site), 6443 from jenkins-sg"])
+        DSG(["data-sg<br/>5432/6379 from k3s+jenkins-sg<br/>9200+5601 from k3s-sg, 5601 from my IP"])
         JSG(["jenkins-sg<br/>22+8080 from my IP<br/>8080 from GitHub webhook IPs"])
         SRV(["EC2: k3s-server (t3.small)"])
         DATA(["EC2: data host (t3.medium)"])
@@ -77,7 +76,7 @@ flowchart TD
         J1["Checkout"] --> J2["Test<br/>against real data host,<br/>fails before anything deploys"] --> J3["Compile robots.txt<br/>→ ConfigMap"] --> J4["Build<br/>docker build"] --> J5["Push<br/>docker push"] --> J6["Deploy<br/>kubectl set image"]
     end
 
-    J5 -->|"tag: git short-SHA"| DH["Docker Hub<br/>ghosthref/bouncer"]
+    J5 -->|"tag: git short-SHA"| DH["Docker Hub<br/>tomermes/ghosthref-bouncer"]
     J6 -->|"private IP :6443"| K8S
     DH -->|pulled by| K8S
 
@@ -92,20 +91,19 @@ flowchart TD
 |---|---|---|
 | Local development | **Docker Compose** | The entire app — nginx, bouncer, redis, postgres, and (in the observability override) elasticsearch + kibana + filebeat. Every dashboard is built and exported here, at zero cost, before anything touches AWS. |
 | Cloud infrastructure | **Terraform** | VPC, one public subnet, IGW, route table, three security groups, three EC2 instances (all pinned to standard CPU credits), a Budget alarm. Local state (gitignored, solo/single-machine project) — `apply`/`destroy` are idempotent and reversible. |
-| Node configuration | **Ansible** | One playbook installs k3s, single node, `--disable traefik`; one provisions the data host (Postgres, Redis, Elasticsearch, Kibana); one provisions Jenkins. Agentless (SSH), run from the operator's laptop against a manually-filled inventory. |
+| Node configuration | **Ansible** | One playbook installs k3s, single node, `--disable traefik`; one provisions the data host (Postgres, Redis, Elasticsearch, Kibana); one provisions Jenkins. Agentless (SSH), run from the operator's laptop against a manually-filled, gitignored inventory. |
 | Cluster orchestration | **k3s** | Single-binary Kubernetes; ServiceLB gives a `type: LoadBalancer` Service a real public IP on port 80 with no cloud load balancer to pay for. |
 | Application definition | **kubectl YAML manifests** | Deployment + Service + ConfigMap + Secret per component (`k8s/*.yaml`). Only the image tag changes per deploy (`kubectl set image`), same as the previous project. |
-| App packaging | **Docker + Docker Hub** | `bouncer/Dockerfile` and `webserver/Dockerfile`-equivalent for nginx-edge. Jenkins tags every build with the triggering commit's short SHA. |
+| App packaging | **Docker + Docker Hub** | Only `bouncer/Dockerfile` is custom-built — Jenkins tags each build with the triggering commit's short SHA and pushes it. nginx-edge runs the stock `nginx:alpine` image unmodified; its behavior comes entirely from the mounted `nginx.conf`/site ConfigMap, so it never needs a build or push step. |
 | CI/CD | **Jenkins + GitHub webhook** | The only fully automated path from `git push` to a live rollout. Test runs first, against the real data host, so a bad code or `robots.txt` change is caught **before** anything is built or deployed — and the stage worth demoing: it compiles `robots.txt` into the ConfigMap on every merge. |
-| Observability | **Filebeat → Elasticsearch → Kibana** | Decoupled from the request path — if Elasticsearch is down, enforcement still works. No Logstash, no Grafana, no Prometheus. |
+| Observability | **Filebeat → Elasticsearch → Kibana** | Decoupled from the request path — if Elasticsearch is down, enforcement still works. No Logstash, no Grafana, no Prometheus. Kibana has no public route; reach it with an SSH tunnel through the k3s node (`data-sg` only opens 5601 to the k3s security group and the operator's own IP). |
 | Cost control | **`make nuke` / `make cost`** (`scripts/`) | `terraform destroy` plus a region-wide sweep for orphaned instances, volumes, EIPs, NAT gateways and load balancers. Verified to report zero survivors *before* the first `apply`, not after. |
 | Secrets | **`.env` + `login.sh`** (AWS) / **Jenkins credentials store** (Docker Hub token, kubeconfig, webhook secret) | Nothing credential-bearing is ever committed. |
 
-## Design principle carried through
+## Cost ceiling
 
-Same discipline as the previous project: a short design spec before code, small
-steps each run for real and verified against live output, one commit per working
-checkpoint. The addition here is a hard cost ceiling — teardown (`make nuke`) is
-built and verified *before* the first expensive resource exists, not bolted on
-afterward. Anything environment-specific (`terraform.tfstate`,
-`ansible/inventory.ini`, `kubeconfig`) is gitignored and regenerated per run.
+`make nuke` (`terraform destroy` + a region-wide sweep) is built and verified
+*before* the first expensive resource exists, not bolted on afterward —
+that's what makes the $15/3-day budget actually holdable. Anything
+environment-specific (`terraform.tfstate`, `ansible/inventory.ini`,
+`kubeconfig`) is gitignored and regenerated per run.

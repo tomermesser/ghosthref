@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Creates the ghosthref-access data view in Kibana. Run from repo root.
-# Created: 2026-09-15
 
 set -eu
 KB="${KIBANA_HOST:-http://localhost:5601}"
