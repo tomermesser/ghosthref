@@ -210,7 +210,43 @@ Once real data is flowing, this is also when you build the Kibana dashboard
 both environments write to the same `ghosthref-access` index shape.
 
 ### Step 13: CI/CD
-*(added in `13-jenkins-pipeline`)*
+
+`Jenkinsfile` — Checkout → **Test** → **Compile robots.txt** into the
+ConfigMap → Build → Push (SHA-tagged) → Deploy (`kubectl set image` +
+restart nginx-edge so it picks up the new ConfigMap). Test runs against the
+real data host directly (no throwaway containers — one less thing to spin up
+and tear down) and gates everything after it, so a broken code or `robots.txt`
+change never gets built, pushed, or deployed in the first place. Test IPs are
+all in `10.0.0.0/8`, so this never collides with or disturbs real visitor data.
+
+**One-time Jenkins setup** (same pattern as the previous project):
+1. `ssh ubuntu@<jenkins_public_ip> 'sudo cat /var/lib/jenkins/secrets/initialAdminPassword'`
+2. Open `http://<jenkins_public_ip>:8080`, install suggested plugins + **Docker Pipeline**, create your admin user.
+3. Manage Jenkins → Credentials → add:
+   - `dockerhub-creds` — Username with password (Docker Hub access token, not your account password)
+   - `k8s-kubeconfig` — Secret file: upload `ansible/kubeconfig`
+   - `github-webhook-secret` — Secret text: any random string
+   - `data-host-ip` — Secret text: the data host's **private** IP (regenerate this credential every time the data host is recreated)
+4. New Item → Pipeline → GitHub hook trigger → Pipeline script from SCM → this repo, branch `main`, script path `Jenkinsfile`.
+5. Register the webhook:
+```
+gh api repos/tomermesser/ghosthref/hooks -f name=web \
+  -f "config[url]=http://<jenkins_public_ip>:8080/github-webhook/" \
+  -f "config[content_type]=json" \
+  -f "config[secret]=<same secret as github-webhook-secret>" \
+  -F active=true -f "events[]=push"
+```
+
+**First, sanity-check all 4 credentials at once**: open the job in Jenkins
+and click **Build Now** — no need to push anything yet. Whichever stage goes
+red tells you exactly which credential is wrong (bad Docker Hub token fails
+at Push, bad kubeconfig fails at Compile/Deploy, wrong `data-host-ip` or a
+missing SG rule fails at Test).
+
+Then the actual demo moment: change one `Disallow` line in `robots.txt`, push
+to `main`, watch all 6 stages go green, then break it on purpose (a rule the
+test suite depends on) and confirm the **Test** stage fails the build before
+anything gets built or deployed.
 
 ## Tearing down
 

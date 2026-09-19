@@ -28,7 +28,7 @@ flowchart TD
         IGW(["aws_internet_gateway"])
         RT(["aws_route_table<br/>0.0.0.0/0 → igw"])
         KSG(["k3s-sg<br/>22+80 from my IP<br/>+6443 from jenkins-sg"])
-        DSG(["data-sg<br/>5432/6379/9200/5601 from k3s-sg only"])
+        DSG(["data-sg<br/>5432/6379 from k3s+jenkins-sg<br/>9200 from k3s-sg, 5601 from my IP"])
         JSG(["jenkins-sg<br/>22+8080 from my IP<br/>8080 from GitHub webhook IPs"])
         SRV(["EC2: k3s-server (t3.small)"])
         DATA(["EC2: data host (t3.medium)"])
@@ -39,6 +39,7 @@ flowchart TD
         IGW --> RT
         SUB --> KSG --> SRV & JENK_EC2
         SUB --> DSG --> DATA
+        JENK_EC2 -.Test stage.-> DATA
     end
 
     subgraph ANSIBLE["Ansible — ansible/playbooks/"]
@@ -73,7 +74,7 @@ flowchart TD
 
     subgraph JENKINS["Jenkins EC2 — Jenkinsfile pipeline"]
         direction TB
-        J1["Checkout"] --> J2["Test"] --> J3["Compile robots.txt<br/>→ ConfigMap"] --> J4["Build<br/>docker build"] --> J5["Push<br/>docker push"] --> J6["Deploy<br/>kubectl set image"] --> J7["Verify<br/>run test suite, fail on<br/>any changed verdict"]
+        J1["Checkout"] --> J2["Test<br/>against real data host,<br/>fails before anything deploys"] --> J3["Compile robots.txt<br/>→ ConfigMap"] --> J4["Build<br/>docker build"] --> J5["Push<br/>docker push"] --> J6["Deploy<br/>kubectl set image"]
     end
 
     J5 -->|"tag: git short-SHA"| DH["Docker Hub<br/>ghosthref/bouncer"]
@@ -95,7 +96,7 @@ flowchart TD
 | Cluster orchestration | **k3s** | Single-binary Kubernetes; ServiceLB gives a `type: LoadBalancer` Service a real public IP on port 80 with no cloud load balancer to pay for. |
 | Application definition | **kubectl YAML manifests** | Deployment + Service + ConfigMap + Secret per component (`k8s/*.yaml`). Only the image tag changes per deploy (`kubectl set image`), same as the previous project. |
 | App packaging | **Docker + Docker Hub** | `bouncer/Dockerfile` and `webserver/Dockerfile`-equivalent for nginx-edge. Jenkins tags every build with the triggering commit's short SHA. |
-| CI/CD | **Jenkins + GitHub webhook** | The only fully automated path from `git push` to a live rollout — and the one stage worth demoing: it compiles `robots.txt` into the ConfigMap, then re-runs the test suite against the deployed environment and **fails the build if any verdict changed**. |
+| CI/CD | **Jenkins + GitHub webhook** | The only fully automated path from `git push` to a live rollout. Test runs first, against the real data host, so a bad code or `robots.txt` change is caught **before** anything is built or deployed — and the stage worth demoing: it compiles `robots.txt` into the ConfigMap on every merge. |
 | Observability | **Filebeat → Elasticsearch → Kibana** | Decoupled from the request path — if Elasticsearch is down, enforcement still works. No Logstash, no Grafana, no Prometheus. |
 | Cost control | **`make nuke` / `make cost`** (`scripts/`) | `terraform destroy` plus a region-wide sweep for orphaned instances, volumes, EIPs, NAT gateways and load balancers. Verified to report zero survivors *before* the first `apply`, not after. |
 | Secrets | **`.env` + `login.sh`** (AWS) / **Jenkins credentials store** (Docker Hub token, kubeconfig, webhook secret) | Nothing credential-bearing is ever committed. |

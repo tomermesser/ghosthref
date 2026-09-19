@@ -57,7 +57,7 @@ resource "aws_security_group" "k3s" {
 
 resource "aws_security_group" "data" {
   name        = "ghosthref-data-sg"
-  description = "Data host: SSH + Kibana from operator IP, Postgres/Redis/Elasticsearch from k3s nodes only"
+  description = "Data host: SSH + Kibana from operator IP, Postgres/Redis from k3s + Jenkins, Elasticsearch from k3s only"
   vpc_id      = aws_vpc.ghosthref.id
 
   ingress {
@@ -76,20 +76,23 @@ resource "aws_security_group" "data" {
     cidr_blocks = [var.my_ip_cidr]
   }
 
+  # Jenkins also needs this: the pipeline's Verify stage runs the test suite
+  # directly against the real Postgres/Redis, using private-range test IPs
+  # that never collide with real visitor traffic.
   ingress {
-    description     = "Postgres from k3s nodes"
+    description     = "Postgres from k3s nodes and Jenkins"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.k3s.id]
+    security_groups = [aws_security_group.k3s.id, aws_security_group.jenkins.id]
   }
 
   ingress {
-    description     = "Redis from k3s nodes"
+    description     = "Redis from k3s nodes and Jenkins"
     from_port       = 6379
     to_port         = 6379
     protocol        = "tcp"
-    security_groups = [aws_security_group.k3s.id]
+    security_groups = [aws_security_group.k3s.id, aws_security_group.jenkins.id]
   }
 
   ingress {
