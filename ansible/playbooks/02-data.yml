@@ -89,6 +89,13 @@
       command: sudo -u postgres psql -d ghosthref -f /tmp/001_init.sql
       changed_when: true
 
+    - name: Grant the ghosthref role privileges on the schema it doesn't own
+      command: >
+        sudo -u postgres psql -d ghosthref -c
+        "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ghosthref;
+         GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ghosthref;"
+      changed_when: true
+
     # --- Redis ---
 
     - name: Install Redis
