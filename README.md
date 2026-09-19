@@ -145,7 +145,36 @@ curl -s -o /dev/null -w '%{http_code}\n' http://<data_public_ip>:5601
 ```
 
 ### Step 11: Kubernetes manifests
-*(added in `11-k8s-manifests`)*
+
+`k8s/bouncer.yaml` and `k8s/nginx-edge.yaml` — Deployment + Service each, with
+resource requests/limits (bouncer's `requests.cpu` is what the HPA in step 12
+measures against) and liveness/readiness probes on `/healthz`.
+
+**No static ConfigMap file** — it's generated from the real source files, the
+same command Jenkins will run on every merge in step 14, so there's never a
+second copy of `robots.txt`/`nginx.conf`/the site to drift out of sync:
+```
+kubectl create configmap ghosthref-config \
+  --from-file=robots.txt=robots.txt \
+  --from-file=nginx.conf=nginx/nginx.conf \
+  --from-file=index.html=site/index.html \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+**The Secret is a template** (`k8s/secret.yaml.example`), same pattern as
+`.env.example` — copy it, fill in the data host's *private* IP, apply:
+```
+cp k8s/secret.yaml.example k8s/secret.yaml   # then edit it
+kubectl apply -f k8s/secret.yaml
+kubectl apply -f k8s/bouncer.yaml -f k8s/nginx-edge.yaml
+```
+
+Verify:
+```
+kubectl get pods                 # 4 pods (2 bouncer + 2 nginx-edge), all Running, 1/1 Ready
+kubectl get svc nginx-edge       # EXTERNAL-IP assigned (ServiceLB)
+curl http://<EXTERNAL-IP>/       # 200, the homepage
+```
 
 ### Step 12: Autoscaling
 *(added in `12-k8s-autoscaling`)*

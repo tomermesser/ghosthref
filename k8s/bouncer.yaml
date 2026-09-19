@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bouncer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bouncer
+  template:
+    metadata:
+      labels:
+        app: bouncer
+    spec:
+      containers:
+        - name: bouncer
+          image: tomermes/ghosthref-bouncer:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: ghosthref-secrets
+          volumeMounts:
+            - name: robots
+              mountPath: /config
+          # requests.cpu is what the HPA in step 12 measures "percent used" against.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+      volumes:
+        - name: robots
+          configMap:
+            name: ghosthref-config
+            items:
+              - key: robots.txt
+                path: robots.txt
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bouncer
+spec:
+  selector:
+    app: bouncer
+  ports:
+    - port: 3000
+      targetPort: 3000

@@ -17,9 +17,9 @@ variable "public_subnet_cidr" {
 }
 
 variable "my_ip_cidr" {
-  description = "Your IP address (with /32) allowed to reach SSH, the site, Jenkins, and Kibana"
+  description = "IP address (with /32) allowed to reach SSH, the site, Jenkins, and Kibana"
   type        = string
-  default     = "0.0.0.0/32" # CHANGE to your real public IP before applying
+  default     = "0.0.0.0/32" # NEEDS to be change to real public IP before applying
 }
 
 variable "instance_type_small" {

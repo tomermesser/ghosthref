@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-edge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-edge
+  template:
+    metadata:
+      labels:
+        app: nginx-edge
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: robots
+              mountPath: /etc/nginx/robots.txt
+              subPath: robots.txt
+            - name: site
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: ghosthref-config
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+        - name: robots
+          configMap:
+            name: ghosthref-config
+            items:
+              - key: robots.txt
+                path: robots.txt
+        - name: site
+          configMap:
+            name: ghosthref-config
+            items:
+              - key: index.html
+                path: index.html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-edge
+spec:
+  type: LoadBalancer
+  # Without this, k3s SNATs every client to a node IP and the bouncer's
+  # IP-based blocking sees one address for everyone.
+  externalTrafficPolicy: Local
+  selector:
+    app: nginx-edge
+  ports:
+    - port: 80
+      targetPort: 80

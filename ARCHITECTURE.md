@@ -61,7 +61,7 @@ flowchart TD
         SIM["simulator<br/>Deployment (scale for load demo)"]
         FB["filebeat<br/>DaemonSet"]
         CM["ConfigMap: robots rules + nginx.conf + site"]
-        SEC["Secret: postgres + elasticsearch creds"]
+        SEC["Secret: postgres + redis connection info"]
         EDGE -->|auth_request| BOUNCER_K
         CM -.mounted by.-> EDGE
         CM -.mounted by.-> BOUNCER_K

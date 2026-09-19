@@ -13,6 +13,7 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+// Security Groups
 resource "aws_security_group" "k3s" {
   name        = "ghosthref-k3s-sg"
   description = "k3s node: SSH + HTTP from operator IP, API from Jenkins"
@@ -152,8 +153,7 @@ resource "aws_security_group" "jenkins" {
   }
 }
 
-# T3 instances default to "unlimited" CPU credits, which bills surplus usage
-# at $0.05/vCPU-hour. Pinning "standard" makes them throttle instead of charge.
+// Instances 
 resource "aws_instance" "k3s_server" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type_small

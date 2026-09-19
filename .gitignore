@@ -26,7 +26,7 @@ ansible/kubeconfig
 *.retry
 
 # Kubernetes generated
-k8s/secrets.yaml
+k8s/secret.yaml
 
 # TLS / keys
 *.pem

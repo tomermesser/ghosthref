@@ -45,7 +45,7 @@
           - python3-psycopg2 # required by the postgresql_user/postgresql_db modules below
         state: present
 
-    - name: Let Postgres listen on all interfaces (the SG already restricts who can reach it)
+    - name: Let Postgres listen on all interfaces (the Security Group already restricts who can reach it)
       lineinfile:
         path: /etc/postgresql/14/main/postgresql.conf
         regexp: "^#?listen_addresses"
