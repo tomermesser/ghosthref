@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Destroys the AWS stack, then checks the region for any leftover ghosthref instance. Run from repo root.
-# Created: 2026-09-16
 
 set -euo pipefail
 

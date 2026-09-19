@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Writes AWS credentials from .env to ~/.aws/credentials and verifies them. Run from repo root.
-# Created: 2026-09-16
 
 set -euo pipefail
 
