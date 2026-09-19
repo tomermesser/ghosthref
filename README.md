@@ -30,11 +30,10 @@ docs/specs/              design docs, one per major decision
 
 - Docker + Docker Compose, Node.js, for local development (steps 1–6, free).
 - AWS CLI, Terraform, Ansible, a personal AWS account, and an existing EC2 key
-  pair, for the AWS build (steps 7–14).
+  pair, for the AWS build (steps 7–13).
 - A `.env` file in the repo root (copy `.env.example`). Never committed.
-- A domain name, and the pre-launch canary-baseline screenshots (see
-  `docs/canary-baseline.md`, added in step 6) taken **before** DNS resolves —
-  that control cannot be recreated afterward.
+- No domain name needed — the site is reachable directly at the k3s node's
+  public IP; a domain is a nice-to-have, never a requirement.
 
 ## Steps
 
