@@ -76,9 +76,14 @@ resource "aws_security_group" "data" {
     cidr_blocks = [var.my_ip_cidr]
   }
 
-  # Jenkins also needs this: the pipeline's Verify stage runs the test suite
-  # directly against the real Postgres/Redis, using private-range test IPs
-  # that never collide with real visitor traffic.
+  ingress {
+    description     = "Kibana from k3s nodes (SSH tunnel hop)"
+    from_port       = 5601
+    to_port         = 5601
+    protocol        = "tcp"
+    security_groups = [aws_security_group.k3s.id]
+  }
+
   ingress {
     description     = "Postgres from k3s nodes and Jenkins"
     from_port       = 5432
