@@ -57,7 +57,7 @@ flowchart TD
     subgraph K8S["k3s cluster — single node (server + worker in one)"]
         direction TB
         EDGE["nginx-edge<br/>Deployment + Service (LoadBalancer :80)"]
-        BOUNCER_K["bouncer<br/>Deployment + Service + HPA"]
+        BOUNCER_K["bouncer<br/>Deployment + Service"]
         FB["filebeat<br/>DaemonSet"]
         CM["ConfigMap: robots rules + nginx.conf + site"]
         SEC["Secret: postgres + redis connection info"]
@@ -93,7 +93,7 @@ flowchart TD
 | Cloud infrastructure | **Terraform** | VPC, one public subnet, IGW, route table, three security groups, three EC2 instances (all pinned to standard CPU credits), a Budget alarm. Local state (gitignored, solo/single-machine project) — `apply`/`destroy` are idempotent and reversible. |
 | Node configuration | **Ansible** | One playbook installs k3s, single node, `--disable traefik`; one provisions the data host (Postgres, Redis, Elasticsearch, Kibana); one provisions Jenkins. Agentless (SSH), run from the operator's laptop against a manually-filled inventory. |
 | Cluster orchestration | **k3s** | Single-binary Kubernetes; ServiceLB gives a `type: LoadBalancer` Service a real public IP on port 80 with no cloud load balancer to pay for. |
-| Application definition | **kubectl YAML manifests** | Deployment + Service + ConfigMap + Secret + HPA per component (`k8s/*.yaml`). Only the image tag changes per deploy (`kubectl set image`), same as the previous project. |
+| Application definition | **kubectl YAML manifests** | Deployment + Service + ConfigMap + Secret per component (`k8s/*.yaml`). Only the image tag changes per deploy (`kubectl set image`), same as the previous project. |
 | App packaging | **Docker + Docker Hub** | `bouncer/Dockerfile` and `webserver/Dockerfile`-equivalent for nginx-edge. Jenkins tags every build with the triggering commit's short SHA. |
 | CI/CD | **Jenkins + GitHub webhook** | The only fully automated path from `git push` to a live rollout — and the one stage worth demoing: it compiles `robots.txt` into the ConfigMap, then re-runs the test suite against the deployed environment and **fails the build if any verdict changed**. |
 | Observability | **Filebeat → Elasticsearch → Kibana** | Decoupled from the request path — if Elasticsearch is down, enforcement still works. No Logstash, no Grafana, no Prometheus. |

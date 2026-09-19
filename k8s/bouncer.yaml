@@ -23,7 +23,7 @@ spec:
           volumeMounts:
             - name: robots
               mountPath: /config
-          # requests.cpu is what the HPA in step 12 measures "percent used" against.
+          # Caps how much a misbehaving pod can take before Kubernetes throttles it.
           resources:
             requests:
               cpu: 50m

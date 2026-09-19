@@ -67,8 +67,9 @@ Jenkins), three security groups, and a $10 budget alarm. See
 `docs/specs/2026-09-15-ghosthref-design.md` for why it's a single AZ with no
 private subnet or ALB — both were cut on cost, not by accident. k3s runs as a
 single node — its server isn't tainted the way kubeadm's control-plane is, so
-it can run workloads too; a second node would only earn its keep once we're
-deliberately load-testing HPA, which isn't a graded requirement here.
+it can run workloads too; a second node would only earn its keep for
+deliberately generated, sustained concurrent load, which isn't part of this
+project's scope.
 
 **One-time setup, before the first `terraform apply`:**
 ```
@@ -147,8 +148,8 @@ curl -s -o /dev/null -w '%{http_code}\n' http://<data_public_ip>:5601
 ### Step 11: Kubernetes manifests
 
 `k8s/bouncer.yaml` and `k8s/nginx-edge.yaml` — Deployment + Service each, with
-resource requests/limits (bouncer's `requests.cpu` is what the HPA in step 12
-measures against) and liveness/readiness probes on `/healthz`.
+resource requests/limits (caps how much a misbehaving pod can take before
+Kubernetes throttles it) and liveness/readiness probes on `/healthz`.
 
 **No static ConfigMap file** — it's generated from the real source files, the
 same command Jenkins will run on every merge in step 14, so there's never a
@@ -176,14 +177,11 @@ kubectl get svc nginx-edge       # EXTERNAL-IP assigned (ServiceLB)
 curl http://<EXTERNAL-IP>/       # 200, the homepage
 ```
 
-### Step 12: Autoscaling
-*(added in `12-k8s-autoscaling`)*
+### Step 12: Shipping logs to the cluster
+*(added in `12-filebeat`)*
 
-### Step 13: Shipping logs to the cluster
-*(added in `13-filebeat`)*
-
-### Step 14: CI/CD
-*(added in `14-jenkins-pipeline`)*
+### Step 13: CI/CD
+*(added in `13-jenkins-pipeline`)*
 
 ## Tearing down
 
