@@ -39,6 +39,7 @@ pipeline {
                             --from-file=robots.txt=robots.txt \
                             --from-file=nginx.conf=nginx/nginx.conf \
                             --from-file=index.html=site/index.html \
+                            --from-file=sitemap.xml=site/sitemap.xml \
                             --dry-run=client -o yaml | kubectl apply -f -
                     '''
                 }

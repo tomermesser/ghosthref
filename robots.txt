@@ -2,3 +2,5 @@
 # it, so any request for it proves the client read this file and ignored it.
 User-agent: *
 Disallow: /ghosthref-internal/
+
+Sitemap: http://98.92.151.192/sitemap.xml
