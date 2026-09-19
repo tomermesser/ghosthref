@@ -1,4 +1,4 @@
-# Tells Ansible which EC2 IPs to configure — copy to inventory.ini, fill in real IPs from `terraform output`.
+# Tells Ansible which EC2 IPs to configure — copy to inventory.ini after terraform apply step is finished.
 
 # The single k3s node — brain and worker in one, since k3s doesn't taint it
 [k3s_server]

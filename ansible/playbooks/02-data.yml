@@ -40,9 +40,7 @@
 
     - name: Install Postgres
       apt:
-        name:
-          - postgresql
-          - python3-psycopg2 # required by the postgresql_user/postgresql_db modules below
+        name: postgresql
         state: present
 
     - name: Let Postgres listen on all interfaces (the Security Group already restricts who can reach it)
@@ -62,20 +60,25 @@
         state: restarted
         enabled: true
 
+    - name: Check if the ghosthref Postgres user already exists
+      command: sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='ghosthref'"
+      register: pg_user_exists
+      changed_when: false
+
     # Postgres calls a user account a "role" internally — this creates the
     # ghosthref user the bouncer connects as.
     - name: Create the ghosthref Postgres user
-      become_user: postgres
-      community.postgresql.postgresql_user:
-        name: ghosthref
-        password: ghosthref
-        role_attr_flags: CREATEDB
+      command: sudo -u postgres psql -c "CREATE ROLE ghosthref LOGIN CREATEDB PASSWORD 'ghosthref'"
+      when: pg_user_exists.stdout | trim != '1'
+
+    - name: Check if the ghosthref database already exists
+      command: sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='ghosthref'"
+      register: pg_db_exists
+      changed_when: false
 
     - name: Create the ghosthref database, owned by that user
-      become_user: postgres
-      community.postgresql.postgresql_db:
-        name: ghosthref
-        owner: ghosthref
+      command: sudo -u postgres createdb -O ghosthref ghosthref
+      when: pg_db_exists.stdout | trim != '1'
 
     - name: Copy the schema migration
       copy:
@@ -83,8 +86,7 @@
         dest: /tmp/001_init.sql
 
     - name: Apply the schema migration (idempotent — uses CREATE TABLE IF NOT EXISTS)
-      become_user: postgres
-      command: psql -d ghosthref -f /tmp/001_init.sql
+      command: sudo -u postgres psql -d ghosthref -f /tmp/001_init.sql
       changed_when: true
 
     # --- Redis ---
