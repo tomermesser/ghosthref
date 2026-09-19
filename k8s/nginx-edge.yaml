@@ -41,7 +41,11 @@ spec:
               subPath: robots.txt
             - name: site
               mountPath: /usr/share/nginx/html
+            - name: log-dir
+              mountPath: /var/log/ghosthref
       volumes:
+        - name: log-dir
+          emptyDir: {}
         - name: nginx-conf
           configMap:
             name: ghosthref-config

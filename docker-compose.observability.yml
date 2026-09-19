@@ -1,9 +1,4 @@
 services:
-  # Adds a shared volume so filebeat can read nginx's log file.
-  nginx:
-    volumes:
-      - ghosthref-logs:/var/log/ghosthref
-
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
     environment:

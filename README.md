@@ -124,14 +124,9 @@ k3s node only is the real boundary here too, not TLS. `03-jenkins.yml` is
 close to a straight copy of the previous project's — Jenkins doesn't care
 what app it's deploying.
 
-**One-time:** the Postgres tasks need a collection not in Ansible core:
+To provision everything from scratch in one command:
 ```
 cd ansible
-ansible-galaxy collection install -r requirements.yml
-```
-
-**Then, to provision everything from scratch in one command:**
-```
 ansible-playbook site.yml
 ```
 

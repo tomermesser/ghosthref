@@ -35,8 +35,12 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro       
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./site:/usr/share/nginx/html:ro                   # the homepage
       - ./robots.txt:/etc/nginx/robots.txt:ro             # served at /robots.txt directly
+      - ghosthref-logs:/var/log/ghosthref                 # access_log needs this directory to exist
     depends_on:
       - bouncer
+
+volumes:
+  ghosthref-logs:
