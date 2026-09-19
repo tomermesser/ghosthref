@@ -118,6 +118,8 @@ ssh -L 5601:<data_private_ip>:5601 ubuntu@<k3s_public_ip>
 
 Open `http://localhost:5601` → Stack Management → Saved Objects → Import.
 
+![Kibana dashboard showing real bot traffic classified by tier](kibana/dashboard.png)
+
 
 
 **E. CI/CD** (`Jenkinsfile`) — push to `main` → test → compile `robots.txt`
