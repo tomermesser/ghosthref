@@ -3,7 +3,8 @@
 A self-hosted server that catches bots two ways: fetching a path `robots.txt`
 disallows, or following a link no human could click.
 
-Architecture overview + diagram: `[ARCHITECTURE.md](ARCHITECTURE.md)`
+New here? Start with [`PRESENTATION.md`](PRESENTATION.md) — the whole idea in
+one minute. Architecture overview + diagram: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Repository layout
 
