@@ -64,6 +64,8 @@ spec:
             items:
               - key: index.html
                 path: index.html
+              - key: sitemap.xml
+                path: sitemap.xml
 ---
 apiVersion: v1
 kind: Service

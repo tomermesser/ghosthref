@@ -97,7 +97,8 @@ Verify: `ssh ubuntu@<k3s_public_ip> 'kubectl get nodes'` → `Ready`.
 docker buildx build --platform linux/amd64 -t tomermes/ghosthref-bouncer:latest bouncer/ --push
 
 kubectl create configmap ghosthref-config \
-  --from-file=robots.txt=robots.txt --from-file=nginx.conf=nginx/nginx.conf --from-file=index.html=site/index.html \
+  --from-file=robots.txt=robots.txt --from-file=nginx.conf=nginx/nginx.conf \
+  --from-file=index.html=site/index.html --from-file=sitemap.xml=site/sitemap.xml \
   --dry-run=client -o yaml | kubectl apply -f -
 
 cp k8s/secret.yaml.example k8s/secret.yaml               # fill in the data host's private IP
